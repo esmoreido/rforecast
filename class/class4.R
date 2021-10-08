@@ -1,5 +1,7 @@
 Sys.setlocale("LC_ALL","Russian")
 library(ggplot2)
+library(readxl)
+
 
 kama <- read_xlsx('data/kama/kama_q.xlsx')
 
