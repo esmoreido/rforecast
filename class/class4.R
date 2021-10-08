@@ -7,6 +7,7 @@ kama <- read_xlsx('data/kama/kama_q.xlsx')
 
 ggplot(kama, aes(date, value, col=index)) + geom_line()
 
+a <- seq(5)
 
 setwd('d:/YandexDisk/ИВПРАН/R forecasts/байкал')
 # список файлов из рабочей директории определенного расширения
