@@ -117,6 +117,7 @@ ggsave(filename = 'myPlot.png', device = 'png', width = 15, height = 10,
 
 
 # запись/чтение в excel
+# install.packages("readxl", "writexl")
 library(readxl)
 library(writexl)
 
