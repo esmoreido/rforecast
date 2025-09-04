@@ -1,72 +1,141 @@
-Sys.setlocale("LC_ALL","Russian")
-library(readxl)
-library(ggplot2)
-library(reshape2)
+Sys.setlocale("LC_ALL")
 library(dplyr)
-library(lubridate)
+library(ggplot2)
+library(sf)
+library(tmap)
+library(rnaturalearth)
 
-# Данные по Протве
-df <- read.csv('data/protva/protva_sz_2008-2020.csv')
-df$Dates <- as.Date(df$Dates, format = '%d-%m-%Y')
-summary(df)
-df <- df[,c(2,1)]
-ggplot(df, aes(x=Dates, y=habs)) + geom_line() + geom_point() 
+# расположение гидропостов в РФ
+hp <- read.table(file = 'data/np_hydropost.csv', 
+                 sep = ";", 
+                 header = T, 
+                 check.names = F, 
+                 colClasses = c('integer', 'integer', 'integer', 'character', 'character', 'numeric', 'numeric', 'numeric'),
+                 stringsAsFactors = F, 
+                 fileEncoding = "windows-1251")
 
-# построение набора предикторов - сдвиг назад и вперед 
-shift = 7
-shift_data <- function(x, shift){
-  for(col in colnames(x)[-1]){
-    for(i in seq(1, shift, 1)){
-      print(col)
-      print(i)
-      col_lag <- paste0(col, i)
-      x[[col_lag]] <- lag(x[[col]], n = i)
-    }
-  }
-  return(x)
-}
+hp_sf <- sf::st_as_sf(hp, coords = c('lon', 'lat'), 
+                  crs = 4326)
+class(hp_sf)
 
-df <- shift_data(df, shift)
+# статичные карты
+ggplot()  +
+  geom_sf(data = hp_sf)
 
-# анализ корреляции и автокорреляции
-acf(df$habs)
-acf(df$habs, plot = F, lag.max = 7)
+hp_map <- ggplot()  + 
+  geom_sf(data = hp_sf)
+hp_map
+russ_pol <- ne_countries(country = 'Russia', 
+                         returnclass = 'sf')
+class(russ_pol)
 
-# разделение на тренинг и тест
-ggplot(df, aes(x=Dates, y=habs)) + geom_line() + geom_point()
+hp_map + geom_sf(data = russ_pol)
+hp_map + coord_sf(crs = 32645)
+hp_map <- ggplot()  + 
+  geom_sf(data = russ_pol, fill='Red',
+          col='blue', alpha = 0.5) +
+  geom_sf(data = hp_sf, aes(fill=property), shape = 25) + 
+  coord_sf(crs = 32645)
+hp_map
 
-train_df <- filter(df, year(Dates) > 2013 & 
-                     year(Dates) < 2020)
-test_df <- filter(df, year(Dates) <= 2013)
-val_df <- filter(df, year(Dates) >= 2020)
-summary(train_df)
-summary(test_df)
-# построение множественной линейной регрессии
+# интерактивные карты
+tmap_mode('view')
+tmap_options(check.and.fix = TRUE)
 
-mod <- lm(data = train_df[,-1], formula = habs ~ .)
-summary(mod)
-formula(mod)
-coef(mod)
+tm_shape(hp_sf) +
+  tm_dots(col = 'property', 
+          popup.vars = c('name', 'f'))
 
-# проверка на тестовой выборке
-test_df$pred <- predict(mod, newdata = test_df)
-library(hydroGOF)
-rmse(obs = test_df$habs, sim = test_df$pred)
-NSE(obs = test_df$habs, sim = test_df$pred)
-ggplot(test_df, aes(x=Dates)) + 
-  geom_line(aes(y=habs, col='obs')) +
-  geom_line(aes(y=pred, col='mod'))
+hp_sf %>%
+  filter(property == 'ФГБУ Якутское УГМС') %>%
+  tm_shape() +
+  tm_dots()
 
-ggplot(test_df, aes(x=habs, y=pred)) + 
-  geom_point() + geom_abline() + 
-  geom_smooth(method = 'lm') + xlim(117, 127) + 
-  ylim(117, 127)
-cor(test_df$pred, test_df$habs, use = "complete.obs")
-# предсказание в оперативном режиме
+# классы площади
+summary(hp_sf)
 
-val_df$pred <- predict(mod, newdata = val_df)
+hp_sf$size <- cut(hp_sf$f, 
+               labels = c('Малая', 
+                          'Средняя', 
+                          'Крупная', 
+                          'Крупнейшая'),
+               breaks = c(-Inf, 2000, 20000, 50000, Inf), 
+               ordered_result = T)
+levels(hp_sf$size)
 
-ggplot(val_df, aes(x=Dates)) + 
-  geom_line(aes(y=habs, col='obs')) +
-  geom_line(aes(y=pred, col='mod'))
+# немного статистики по классам
+hp_sf %>%
+  ggplot(aes(x=size, fill=size)) + 
+  geom_histogram(stat = 'count') + 
+  stat_count(geom = 'text', aes(label = after_stat(count)), 
+             vjust = -0.1)
 
+# визуализация
+tm_shape(hp_sf) + 
+  tm_dots(col = 'size', palette = "YlOrRd", 
+          popup.vars = 'name')
+
+# выбираем один класс
+small_r <- hp_sf %>%
+  dplyr::filter(size == 'Малая')
+
+# изменение СК
+sp_posts <- st_transform(small_r, crs = 3857)
+sp_posts
+# построение буфера вокруг точки
+buf <- st_buffer(x = sp_posts, dist = 50000)
+
+tm_shape(buf) +
+  tm_polygons(alpha = 0.5, col = 'red', border.col = 'blue') + 
+  tm_shape(sp_posts) + 
+  tm_dots()
+
+# расположение метеостанций 
+syn_meta <- read.csv('data/np_meteost.csv', 
+                     encoding = 'windows-1251')
+syn_sf <- st_as_sf(syn_meta, 
+                   coords = c('lon', 'lat'), crs = 4326)
+syn_sf 
+  tm_shape(buf) + 
+  tm_polygons(alpha = 0.5) + 
+    tm_shape(syn_sf) + 
+    tm_dots(col = 'blue') +
+    tm_shape(small_r) + 
+  tm_dots(col = 'green') 
+
+# пространственное пересечение
+intersect <- st_intersection(st_transform(buf, crs = 3857), 
+                             st_transform(syn_sf, crs = 3857))
+
+tm_shape(intersect) + 
+  tm_dots()
+
+intersect %>%
+  filter(index == 10223)
+
+# фильтрация постов с нулевыми площадями
+intersect <- intersect %>%
+  dplyr::filter(f > 0)
+intersect <- st_transform(intersect, crs = 4326)
+intersect
+
+#  проверка дубликатов
+sum(duplicated(intersect$index))
+intersect <- intersect %>%
+  dplyr::distinct(index, .keep_all = T)
+
+# экспорт в шейп с обязательным указанием кодировки
+st_write(intersect, 'data/rivers/hydropost_2000.shp', 
+         delete_layer = T, 
+         layer_options = "ENCODING=UTF-8")
+# загрузка записанного шейпа
+newhp <- st_read('data/rivers/hydropost_2000.shp')
+newhp
+
+# полигоны вручную
+outer = matrix(c(0,0,10,0,10,10,0,10,0,0),
+               ncol=2, byrow=TRUE)
+p1 <- st_polygon(list(outer))
+polc <- st_sfc(p1, crs = 4326)
+tm_shape(polc) + 
+  tm_polygons()

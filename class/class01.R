@@ -1,5 +1,5 @@
 # устанавливаем поддержку кириллицы
-Sys.setlocale(category = "LC_ALL", locale = "Russian")
+Sys.setlocale(category = "LC_ALL")
 # сложение
 2 + 6
 # вычитание

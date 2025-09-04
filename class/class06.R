@@ -1,62 +1,120 @@
-Sys.setlocale(category = "LC_ALL", locale="Russian") 
+Sys.setlocale("LC_ALL")
 library(ggplot2)
-setwd('d:/YandexDisk/ИВПРАН/R forecasts/байкал')
-load(file = 'prog_df.RData')
-prog_df <- na.omit(prog_df)
+library(lubridate)
+library(dplyr)
+library(forecast)
+load('data/baikal/prog_df.RData')
 
-prog_apr <- prog_df[prog_df$month == 'Apr',]
-summary(prog_apr)
+prog_df <- prog_df %>%
+  mutate(date = as.Date(ISOdate(year, month, 1))) %>%
+  filter(!is.na(obs)) %>%
+  arrange(date)
 
-ggplot(prog_apr, aes(x=year)) + geom_point(aes(y=pred, col='Прогноз')) + 
-  geom_line(aes(y=pred, col='Прогноз')) + 
-  geom_point(aes(y=obs, col='Наблюдения')) + 
-  geom_line(aes(y=obs, col='Наблюдения'))
+acf(prog_df$obs)
+acf(prog_df$obs, plot = F)
 
-mean_pred <- mean(prog_apr$pred)
-mean_fact <- mean(prog_apr$obs)
-sd_pred <- sd(prog_apr$pred)
-sd_fact <- sd(prog_apr$obs)
+df <- prog_df %>%
+  select(date, obs, pred) %>%
+  mutate(lag1 = lag(x = obs, n = 1)) %>%
+  filter(!is.na(lag1))
 
-prog_apr$err <- prog_apr$pred - prog_apr$obs
-prog_apr$AE <- abs(prog_apr$pred - prog_apr$obs)
+cor(df$obs, df$lag1, use = 'complete.obs')  
 
-ME <- mean(prog_apr$err)
-MAE <- mean(prog_apr$AE)
+df <- df %>%
+  group_by(month = month(date)) %>%
+  mutate(clim = mean(obs, na.rm = T))
 
-MSE <- mean(prog_apr$err ^ 2)
-RMSE <- sqrt(MSE)
+cor(df$obs, df$clim)
 
-SSc <- RMSE / sd_fact
+# LM
+lm <- lm(data = df, formula = obs ~ lag1)
+lm
+summary(lm)
+coefficients(lm)
+mean(residuals(lm))
 
-R <- cor(prog_apr$pred, prog_apr$obs)
+df$pred_lm <- predict(lm)
+cor(df$obs, df$pred_lm)
+ggplot(df, aes(x=obs)) + 
+  geom_point(aes(y=pred_lm, col='lm')) + 
+  geom_point(aes(y=pred, col='init')) + 
+  geom_point(aes(y=clim, col='clim')) + 
+  geom_abline() + 
+  facet_wrap(month(date)~.) + 
+  xlim(-500, 10000) + 
+  ylim(-500, 10000)
 
-ggplot(prog_apr, aes(x = obs, y = pred, col = err)) + geom_point(size=3) + xlim(0, 2000) + ylim(0, 2000) + 
-  geom_abline() + geom_vline(xintercept = 1000) + geom_hline(yintercept = 1000)
 
-prog_apr$opr <- prog_apr$AE <= 0.674 * sd_fact
-summary(prog_apr)
+# trend
+tsBaikal <- ts(data = prog_df$obs, 
+               start = c(1963, 1), 
+               frequency = 12)
+tsBaikal
+class(tsBaikal)
+typeof(tsBaikal)
+plot(tsBaikal)
+components.Baikal <- decompose(tsBaikal, type = 'additive')
+plot(components.Baikal)
+components.Baikal.mult <- decompose(tsBaikal, type = 'multiplicative')
+plot(components.Baikal.mult)
+deseas <- tsBaikal - components.Baikal$seasonal
+plot(deseas)
+mean(deseas, na.rm = T)
+detrend <- deseas - components.Baikal$trend
+plot(detrend)
+mean(detrend, na.rm = T)
+sd(detrend, na.rm = T)
 
-OPR <- sum(prog_apr$opr) / length(prog_apr$opr)
+# ARIMA auto model
+arima_model <- forecast::auto.arima(y = tsBaikal)
+prog_df$arima <- 
+arima_model
+summary(arima_model)
+arima_model %>% forecast::forecast(h=24) %>% 
+  autoplot(include=80)
+arm <- data.frame(date = prog_df$date, 
+                  fit = arima_model$fitted, 
+                  fact = arima_model$x)
+ggplot(arm, aes(x=date)) + geom_line(aes(y=fit)) + 
+  geom_point(aes(y=fact))
+ggplot(arm, aes(x=fact, y=fit)) + geom_point() + 
+  geom_abline() + xlim(0, 7500) + 
+  ylim(0, 7500) + 
+  geom_smooth(method = 'lm', se = F)
 
-error_check <- function(x){
-  mean_pred <- mean(x$pred)
-  mean_fact <- mean(x$obs)
-  sd_pred <- sd(x$pred)
-  sd_fact <- sd(x$obs)
-  x$err <- x$pred - x$obs
-  x$AE <- abs(x$pred - x$obs)
-  ME <- mean(x$err)
-  MAE <- mean(x$AE)
-  MSE <- mean(x$err ^ 2)
-  RMSE <- sqrt(MSE)
-  SSc <- RMSE / sd_fact
-  R <- cor(x$pred, x$obs)
-  result <- list(mean_pred, mean_fact, sd_pred, sd_fact, ME, MAE, MSE, RMSE, SSc, R)
-  names(result) <- c('Forecast mean', 'Observed mean', 'Forecast std', 'Observed std', 
-                     'Mean error', 'Meas absolute error', 'Mean squared error', 
-                     'Root mean squared error', 'S/Sigma', 'Correlation')
-  return(result)
-}
+ggplot(arm, aes(x=fact, y=fit)) + geom_point() + 
+  geom_abline() + 
+  facet_wrap(month(date)~., scales = 'free') +
+  geom_smooth(method = 'lm', se = F)
 
-error_apr <- error_check(prog_apr)
-error_apr
+library(prophet)
+
+pritok <- prog_df |>
+  select(date, obs) |>
+  rename(ds = date, y = obs) |>
+  arrange(ds)
+
+train <- pritok |>
+  slice(1:600)
+test <- pritok |>
+  slice(601:624)
+
+M0 <- prophet(df = train, 
+              weekly.seasonality = F, 
+              daily.seasonality = F, 
+              seasonality.mode = 'additive')
+M0
+
+future_df <- make_future_dataframe(m = M0, 
+                                   periods = 24, 
+                                   freq = 'month', 
+                                   include_history = F)
+forecast_M0 <- predict(M0, future_df)
+dyplot.prophet(x = M0, fcst = forecast_M0)
+prophet_plot_components(M0, forecast_M0)
+plot(M0, forecast_M0) + 
+  geom_point(data = test, size=3, 
+             aes(x=as.POSIXct(ds), y=y), col='Red') +
+  scale_x_datetime(limits = c(as.POSIXct('2013-01-01'),
+                              as.POSIXct('2015-01-01')))
+

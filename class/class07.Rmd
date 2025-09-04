@@ -1,9 +1,11 @@
 ---
-title: "РџСЂРѕРіРЅРѕР·С‹ РїСЂРёС‚РѕРєР° Рє РѕР·РµСЂСѓ Р‘Р°Р№РєР°Р»"
-author: "Р’СЃРµРІРѕР»РѕРґ РњРѕСЂРµР№РґРѕ"
-date: "23 РѕРєС‚СЏР±СЂСЏ 2020 Рі."
-output:
-  pdf_document: default
+title: "Оценка прогнозов притока воды в озеро Байкал"
+author: "Всеволод Морейдо"
+date: "18 октября 2024 года"
+output: html_document
+  # pdf_document:
+    # latex_engine: lualatex
+# mainfont: Times
 ---
 
 **Байкал** _(бур. Байгал далай)_ — [озеро](https://ru.wikipedia.org/wiki/%D0%91%D0%B0%D0%B9%D0%BA%D0%B0%D0%BB) тектонического происхождения в южной части Восточной Сибири, самое глубокое озеро на планете, крупнейший природный резервуар пресной воды и самое большое по площади пресноводное озеро на континенте.
@@ -18,23 +20,34 @@ output:
   + и максимальных уровней воды
   
 ```{r}
-load(file = 'd:/YandexDisk/ИВПРАН/R forecasts/байкал/prog_df.RData')
-summary(prog_df)
+load(file = '../data/baikal/prog_df.RData')
+knitr::kable(summary(prog_df))
 ```
+# Результаты {.tabset}
+## ME
+text `r mean(prog_df$obs - prog_df$pred, na.rm = T)`
+## MAE
+text `r mean(abs(prog_df$obs - prog_df$pred), na.rm = T)`
+
+
+
 
 Приток к Байкалу выглядит так:
 
-```{r, warning=FALSE, fig.width=10, fig.width=10, message=FALSE}
+```{r, fig.width=10, fig.width=10}
 library(ggplot2)
-ggplot(prog_df, aes(x=year, y=obs, col=month)) + geom_line() + geom_point() + theme_light(base_size = 15)
+ggplot(prog_df, aes(x=year, y=obs, col=factor(month))) + geom_line() + geom_point() + facet_wrap(month~., scales = 'free_y') + 
+  theme_light(base_size = 15)
 ```
 
 # Оценка ошибок прогноза
 
 Расчет систематической ошибки прогноза производится по формуле
 
-$ME = \frac 1n  \sum q_{forecast} - q_{observed}$, 
+$ME = \frac 1n ( \sum q_{forecast} - q_{observed})$, 
 
-где $q_{forecast}$ - прогнозный расход воды.
+где $q_{forecast}$ - прогнозный расход воды. 
+
+`r unique(prog_df$year)`
 
 Среднее значение притока воды в озеро Байкал составляет `r round(mean(prog_df$obs, na.rm=T), 2)` м^3^/c.

@@ -1,57 +1,76 @@
-Sys.setlocale(category = "LC_ALL", locale="Russian") 
+Sys.setlocale("LC_ALL") 
+library(tidyverse)
+library(dplyr)
+load(file = 'data/baikal/prog_df.RData')
 
-setwd('d:/YandexDisk/ИВПРАН/R forecasts/байкал')
-# так мы сохранили датафрейм с прогнозами из предыдущего занятия
-# save(prog_df, file = 'baikal.RData')
-# а так мы загружаем из него данные в формате R
-load(file = 'prog_df.RData')
+# pipeline
+prog_df <- prog_df %>% 
+  mutate(err = pred - obs)
+
+df <- prog_df %>%
+  filter(!is.na(pred)) %>%
+  group_by(month) %>%
+  summarise(mean_pred = mean(pred),
+         mean_fact = mean(obs),
+         sd_pred = sd(pred),
+         sd_fact = sd(obs),
+         AE = mean(abs(err), na.rm = T),
+         ME = mean(err, na.rm = T),
+         MAE = mean(AE, na.rm = T),
+         MSE = mean(err ^ 2, na.rm = T),
+         RMSE = sqrt(MSE),
+         SSc = (RMSE / sd_fact))
+
+df %>%
+  mutate(month = factor(month)) %>%
+  pivot_longer(cols = !month, names_to = 'metric', 
+               values_to =  'value') %>%
+  ggplot(aes(x=month, y=value, fill=metric)) + 
+  geom_col() +
+  facet_wrap(metric~., 
+             scales = 'free_y', ncol = 2)
 
 # объединение по атрибуту
-meteo <- read.csv('d:/YandexDisk/ИВПРАН/R forecasts/2020/MeteoMean.REZ', sep = '')
-meteo$Data <- as.Date(strptime(as.character(meteo$Data), format = '%Y%m%d'))
-meteo <- meteo[,c(1:3)]
-
-# использование пакета для манипуляций с датами
-library(lubridate)
+meteo <- read.csv('data/MeteoMean.REZ', sep = '')
+meteo$Data <- as.Date(strptime(as.character(meteo$Data), 
+                               format = '%Y%m%d'))
+meteo <- meteo %>%
+  select(Data, Temperat.C., Precip.mm.) %>%
+  rename('date' = 'Data', 'temp' = 'Temperat.C.', 'prec' = 'Precip.mm.')
+summary(meteo)
 # делаем столбец с годами
-meteo$year <- year(meteo$Data)
-# c месяцами
-meteo$month <- month(meteo$Data)
-# конвертируем номер месяца в короткое название
-meteo$month <- month.abb[meteo$month]
-# и превращаем в фактор с уровнями
-meteo$month <- factor(meteo$month, levels = month.abb, ordered = T)
+meteo <- meteo %>%
+  mutate(year = year(date), 
+         month = month(date))
 
-# осредняем значения по годам
-meteo_t_year <- aggregate(Temperat.C. ~ year, meteo, mean)
-meteo_p_year <- aggregate(Precip.mm. ~ year, meteo, sum)
+meteo_month_year <- meteo %>%
+  group_by(month, year) %>%
+  summarise(temp = mean(temp), 
+            prec = sum(prec))
 
-# объелиняем два датафрейма по общему атрибуту - году
-meteo_year <- merge(x = meteo_t_year, y = meteo_p_year, by = 'year')
-# склеивание столбцов - не то же самое
-m1 <- cbind(meteo_t_year, meteo_p_year)
+meteo_month_year <- meteo_month_year %>%
+  mutate(date = as.Date(ISOdate(year, 
+                                month, 1)))
+ggplot(meteo_month_year, aes(x=date)) +
+  geom_line(aes(y=temp, col='Температура')) + 
+  geom_col(aes(y=prec, fill='Осадки')) +
+  scale_color_manual(values = c('red')) + 
+  scale_fill_manual(values = c('blue'))
 
-# осредняем по годам и месяцам
-meteo_t_month <- aggregate(Temperat.C. ~ year + month, meteo, mean)
-meteo_p_month <- aggregate(Precip.mm. ~ year + month, meteo, sum)
-
-# объединяем по двум общим признакам
-meteo_month <- merge(x = meteo_t_month, y = meteo_p_month, by = c('year', 'month'))
 
 # объединяем по общим признакам с данными по притоку
-all_df <- merge(x = prog_df, y = meteo_month, by = c('year', 'month'))
-# чтобы не обрезались данные, где метео нет, используем all = TRUE
-all2 <-  merge(x = prog_df, y = meteo_month, by = c('year', 'month'), all = TRUE)
+df <- prog_df %>%
+  right_join(meteo_month_year, 
+             by = c('month', 'year'))
 
-# исследуем вид
-library(ggplot2)
-library(reshape2)
-# преобразуем в длинный формат
-mdf <- melt(all_df, id.vars = c('year', 'month'))
-# делаем дату
-mdf$date <- ymd(paste(mdf$year,  as.integer(mdf$month), 1))
 # смотрим
-ggplot(mdf, aes(x = date, y = value, col = variable)) + geom_point() + geom_line() +
-  facet_wrap(.~variable, scales = 'free_y') + geom_smooth()
- 
-
+df %>%
+  select(!c(err)) %>%
+  pivot_longer(!c(date, year, month), 
+               names_to = 'var', 
+               values_to = 'val') %>%
+  ggplot(aes(x=date, y=val, 
+             col = var)) +
+  geom_line() + 
+  facet_wrap(var~., scales = 'free_y', 
+             ncol = 1)
