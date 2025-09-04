@@ -1,5 +1,6 @@
 # устанавливаем поддержку кириллицы
 Sys.setlocale(category = "LC_ALL")
+# базовые конструкции ----
 # сложение
 2 + 6
 # вычитание
@@ -23,7 +24,7 @@ y = 3.5
 x + y 
 z <- x + y
 
-# текстовое
+# текстовая
 me <- "Сева"
 val <- 10
 
@@ -47,13 +48,13 @@ class(today)
 typeof(today)
 unclass(today)
 
-# объекты в памяти
+# объекты в памяти ----
 ls()
 # удаление объектов из памяти
 rm(students)
 rm(list = ls())
 
-# приведение типов
+# приведение типов ----
 num <- c(1, 4, 7)
 nom <- c(1, 4, '7')
 typeof(num)
@@ -64,7 +65,7 @@ str(nom)
 nas_conv <- c(1, 4, 'семь')
 nas_conv <- as.integer(nas_conv)
 
-# обращение к элементу
+# индексация и обращение к элементу ----
 height[1]
 h1 <- height[1 : 3] + 20
 height[-1]
@@ -90,7 +91,7 @@ sort(height, decreasing = TRUE)[1:3]
 
 which(height <= mean(height))
 
-# выборка 
+# выборка ----
 height >= 180
 mask_180 <- height >= 180
 mask_180
@@ -98,7 +99,7 @@ typeof(mask_180)
 height[mask_180]
 height[height <= 180]
 
-# цикл по элементам вектора
+# цикл по элементам вектора ----
 for (i in students){
   print(paste("Кто это? Это", i))
 }
@@ -106,7 +107,7 @@ for (k in height) {
   print(k + 100)
 }
 
-# функция
+# функция ----
 kelvin_to_celsius <- function(temp){
   celsius <- temp - 273.15
   return(celsius)
@@ -114,6 +115,7 @@ kelvin_to_celsius <- function(temp){
 
 kelvin_to_celsius(temp = 285.3)
 
+# структуры данных - векторы и матрицы ----
 # сделать матрицу 3х3, последовательно заполненную числами от 1 до 9
 matrix(1:9)
 matrix(1:9, byrow = TRUE, nrow = 3) # byrow - вид заполнения, по строкам или по столбцам
@@ -124,7 +126,7 @@ matrix(1:12, byrow = FALSE, nrow = 4)
 
 matrix(seq(1, 25, 1), byrow = TRUE, nrow = 5)
 
-# последовательности
+# генерация последовательности ----
 seq(from = 0, to = 1, by = 0.2)
 seq(from = 0, to = 1, length.out = 100)
 
@@ -135,8 +137,8 @@ set.seed(1234567)
 myMatrix <- 
   matrix(rnorm(n = 9, mean = 0, sd = 1), 
          byrow = TRUE, nrow = 3)
-# где мы находимся в файловой системе
-# и как изменить рабочую директорию
+
+# файловая система и рабочая директория ----
 getwd()
 setwd('d:/YandexDisk/ИВПРАН/R forecasts/2024')
 # write.csv, read.csv

@@ -1,4 +1,4 @@
-Sys.setlocale("LC_ALL","Russian")
+Sys.setlocale("LC_ALL")
 # матрица: продолжение
 my_matrix <- matrix(rnorm(n = 12, mean = 0, sd = 1), 
                     nrow = 4, byrow = F)
