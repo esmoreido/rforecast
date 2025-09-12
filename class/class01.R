@@ -18,6 +18,8 @@ sqrt(9)
 # сравнение
 3 > 5
 3 < 6
+3 <= 5
+3 != 5
 # присвоение переменной значения: числовое
 x <- 2
 y = 3.5
@@ -36,6 +38,8 @@ str(students)
 length(students)
 class(students)
 typeof(students)
+string_object <- as.character(10)
+as.integer(string_object)
 # числовой вектор
 height <- c(180, 185, 170, 
             182, 168, 198)
@@ -89,7 +93,7 @@ sort(height)
 sort(height, decreasing = TRUE)
 sort(height, decreasing = TRUE)[1:3]
 
-which(height <= mean(height))
+height[which(height <= mean(height))]
 
 # выборка ----
 height >= 180
@@ -137,10 +141,17 @@ set.seed(1234567)
 myMatrix <- 
   matrix(rnorm(n = 9, mean = 0, sd = 1), 
          byrow = TRUE, nrow = 3)
-
+myMatrix
 # файловая система и рабочая директория ----
 getwd()
-setwd('d:/YandexDisk/ИВПРАН/R forecasts/2024')
+setwd('d:/YandexDisk/ИВПРАН/R forecasts/2025')
 # write.csv, read.csv
 write.csv(x = myMatrix, file = 'myMatrix.txt')
 read.csv(file = 'myMatrix.txt')
+
+comment(myMatrix) <- 'моя учебная матрица'
+save(myMatrix, file = 'myMatrix.RData')
+rm(myMatrix)
+load('myMatrix.RData')
+comment(myMatrix)
+
