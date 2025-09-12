@@ -106,3 +106,100 @@ my_df_long <- pivot_longer(my_df, cols = !c(id, diff, bank),
                            values_to = 'val')
 my_df_long
 
+# графика ----
+ggplot(my_df_long, aes(x=val, fill=var)) + 
+  geom_density(alpha = 0.5)
+
+ggplot(my_df_long, aes(x=id, y=val, col=var)) +
+  geom_line() +
+  geom_point() 
+
+ggplot(my_df, aes(x=a, y=b, col=d)) + 
+  geom_point()
+
+# факторы ----
+my_df_long$var <- factor(my_df_long$var)
+str(my_df_long)
+
+# графика
+library(ggplot2)
+ggplot(my_df_long, aes(x=val, fill=var)) + 
+  geom_density(alpha = 0.5)
+
+my_df_long$var <- factor(my_df_long$var, 
+                         levels = c('a', 'b', 'c'), 
+                         ordered = F)
+str(my_df_long)
+
+my_df_long$var <- factor(my_df_long$var, 
+                         levels = c('a', 'b', 'c'), 
+                         labels = c('big', 'mid', 'small'),
+                         ordered = T)
+str(my_df_long)
+
+# графика
+ggplot(my_df_long, aes(x=val, fill=var)) + geom_density(alpha = 0.5)
+ggplot(my_df_long, aes(x=id, y=val, col=var)) +
+  geom_line() + geom_point()
+
+# экспорт изображений
+ggsave(filename = 'myPlot.png', device = 'png', width = 15, height = 10, 
+       units = 'cm')
+
+
+# запись/чтение в excel ----
+# install.packages("readxl", "writexl")
+library(readxl)
+library(writexl)
+
+write_xlsx(my_df_long, path = 'my_df_long.xlsx')
+
+df1 <- read_xlsx('my_df_long.xlsx')
+
+# читаем данные из excel
+df <- read_xlsx('data/oka/oka.xlsx')
+summary(df)
+head(df, 10)
+tail(df, 10)
+
+# отсутствующие данные
+df <- df[-4, ]
+clean_df <- na.omit(df)
+
+# создание факторов разбиением
+clean_df$size <- cut(x = clean_df$area, 
+                     breaks = c(0, 2000, 10000, 100000), 
+                     labels = c('малая','средняя','крупная'), 
+                     ordered_result = T)
+# графика ggplot
+library(ggplot2)
+ggplot(clean_df, aes(x=size, y=len, fill=size)) + 
+  geom_boxplot() + 
+  stat_boxplot(geom = 'errorbar') 
+ggplot(df, aes(x=area, fill=side)) + 
+  geom_histogram(binwidth = 1000, position = 'dodge')
+ggplot(df, aes(x=len, y=area, col=side)) + 
+  geom_point(size=5)
+ggplot(df, aes(x=len, y=area)) + geom_point(size=5) + 
+  geom_smooth(method = 'lm', formula = y ~ x, se = F)
+# линейная аппроксимация ----
+area_model <- lm(data = df, formula = area ~ len)
+df$pred_area <- predict(area_model)
+
+ggplot(df, aes(x=len)) + geom_point(aes(y=area, col='Факт'), size=5) +
+  geom_line(aes(y=pred_area, col='Модель'), size=5) +
+  geom_text(aes(x = 100, y=40000, label=''))
+
+coef_a <- as.character(round(coef(area_model)[2], 2))
+coef_b <- as.character(round(coef(area_model)[1], 2))
+cor_coef <- as.character(round(cor(df$area, df$pred_area), 2))
+
+model_text <- paste("y = ", coef_a, " * x ", coef_b, ", R = ", cor_coef)
+model_text
+
+p <- ggplot(df, aes(x=len)) + geom_point(aes(y=area, col='Факт'), size=5) +
+  geom_line(aes(y=pred_area, col='Модель'), size=5) +
+  geom_text(aes(x = 100, y=40000, label=model_text))
+p
+ggsave(plot = p, filename = 'linear_model.png', device = 'png', 
+       width = 10, height = 8, units = 'in', dpi = 300)
