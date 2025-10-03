@@ -9,6 +9,7 @@ now
 
 # как оно хранится
 class(now)
+typeof(now)
 unclass(now)
 
 # два класса POSIX для хранения времени ct и lt
@@ -93,7 +94,7 @@ df2$date <- as.Date(df2$date)
 df <- merge(df1, df2, by = 'date')
 
 # даты и агрегация
-df <- read.csv('d:/YandexDisk/ИВПРАН/R forecasts/2023/wr221208a2.txt', sep = '', 
+df <- read.csv('wr221208a2.txt', sep = '', 
                header = F, col.names = c('index', 'year', 'month', 'day', 'tmin', 't', 'tmax', 'p'))
 
 df %>%

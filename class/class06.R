@@ -67,7 +67,6 @@ sd(detrend, na.rm = T)
 
 # ARIMA auto model
 arima_model <- forecast::auto.arima(y = tsBaikal)
-prog_df$arima <- 
 arima_model
 summary(arima_model)
 arima_model %>% forecast::forecast(h=24) %>% 
@@ -76,13 +75,13 @@ arm <- data.frame(date = prog_df$date,
                   fit = arima_model$fitted, 
                   fact = arima_model$x)
 ggplot(arm, aes(x=date)) + geom_line(aes(y=fit)) + 
-  geom_point(aes(y=fact))
+  geom_point(aes(y=fact, col=factor(month(date))))
 ggplot(arm, aes(x=fact, y=fit)) + geom_point() + 
   geom_abline() + xlim(0, 7500) + 
   ylim(0, 7500) + 
   geom_smooth(method = 'lm', se = F)
 
-ggplot(arm, aes(x=fact, y=fit)) + geom_point() + 
+ggplot(arm, aes(x=fact, y=fit, col=factor(month(date)))) + geom_point() + 
   geom_abline() + 
   facet_wrap(month(date)~., scales = 'free') +
   geom_smooth(method = 'lm', se = F)
@@ -99,7 +98,7 @@ train <- pritok |>
 test <- pritok |>
   slice(601:624)
 
-M0 <- prophet(df = train, 
+M0 <- prophet::prophet(df = train, 
               weekly.seasonality = F, 
               daily.seasonality = F, 
               seasonality.mode = 'additive')

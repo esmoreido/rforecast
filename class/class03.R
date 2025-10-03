@@ -1,12 +1,34 @@
 Sys.setlocale("LC_ALL")
-library(ggplot2)
+library(tidyverse)
 library(readxl)
-library(ggpmisc)
+
+# читаем данные из excel
+df <- read_xlsx('data/kama/kama_wide.xlsx')
+
+# графика ggplot
+
+ggplot(df) + 
+  geom_line(aes(x=date, y=`76553`, col='76553'))
+p <- ggplot(df) + 
+  geom_line(aes(x=date, y=`76553`, col='76553'))
+p
+p + geom_line(aes(x=date, y=`76574`, col='76574'))
+
+# wide to long
+df_long <- pivot_longer(df, cols = !date, names_to = 'index', values_to = 'q')
+
+ggplot(df_long, aes(x=date, y=q, col=index)) + 
+  geom_line()
+
+
+
 # читаем данные из excel
 df <- read_xlsx('data/oka/oka.xlsx')
 summary(df)
 head(df, 10)
 tail(df, 10)
+
+# wide to long
 
 # очистка от NA
 clean_df <- na.omit(df)
